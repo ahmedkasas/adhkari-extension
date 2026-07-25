@@ -93,7 +93,6 @@ if @host contains "youtube" || @host contains "youtu.be" {
 if @videoURL != "" {
     const videoData = downloadURL(@videoURL)
     savePhoto(videoData, "Blanklizy")
-    alert("تم حفظ الفيديو في تطبيق الصور بأعلى جودة متاحة ✅")
 } else {
     alert("تعذر العثور على رابط الفيديو. تأكد من صحة الرابط، أن الفيديو عام وليس خاصاً، وأن الخدمة الخارجية متاحة حالياً.")
 }
