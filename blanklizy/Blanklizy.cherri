@@ -1,0 +1,61 @@
+#define name Blanklizy
+#define color purple
+#define glyph downloadArrow
+#define from sharesheet
+#define inputs text, url
+
+#include 'actions/web'
+#include 'actions/photos'
+
+// Use whatever was shared into the shortcut; otherwise ask for a pasted link.
+if ShortcutInput {
+    @link = "{ShortcutInput}"
+} else {
+    const pastedLink = prompt("الصق رابط الفيديو (تيك توك أو تويتر/X)", "URL", nil, "false")
+    @link = "{pastedLink}"
+}
+
+const hostRaw = getURLDetail(@link, "Host")
+@host = "{hostRaw}"
+
+// TikTok — no-watermark link via tikwm.com's public API.
+if @host contains "tiktok" {
+    const encodedLink = urlEncode(@link)
+    const apiResponse = downloadURL("https://www.tikwm.com/api/?url={encodedLink}&hd=1")
+    const apiDict = getDictionary(apiResponse)
+    const dataRaw = getValue(apiDict, "data")
+    const data = getDictionary(dataRaw)
+    const playRaw = getValue(data, "play")
+    @videoURL = "{playRaw}"
+}
+
+// Twitter / X — direct media via the vxtwitter.com mirror API.
+if @host contains "twitter" || @host contains "x.com" {
+    const pathRaw = getURLDetail(@link, "Path")
+    @path = "{pathRaw}"
+    const twApiResponse = downloadURL("https://api.vxtwitter.com{@path}")
+    const twApiDict = getDictionary(twApiResponse)
+    const mediaRaw = getValue(twApiDict, "mediaURLs")
+    const firstMedia = getFirstItem(mediaRaw)
+    @videoURL = "{firstMedia}"
+}
+
+// YouTube blocks the free, server-less methods this shortcut relies on.
+if @host contains "youtube" || @host contains "youtu.be" {
+    alert("يوتيوب غير مدعوم حالياً بدون سيرفر خاص، بسبب حماية يوتيوب المشددة ضد أدوات التحميل المجانية. جرّب أداة مثل yt-dlp على الكمبيوتر.")
+    stop()
+}
+
+// Instagram/Facebook need an authenticated backend to be reliable — not included in this no-server version.
+if @host contains "instagram" || @host contains "facebook" || @host contains "fb.watch" {
+    alert("إنستغرام وفيسبوك غير مدعومين بعد في هذا الإصدار من بلانكليزي. سيتم إضافتهما لاحقاً.")
+    stop()
+}
+
+if @videoURL {
+    const videoData = downloadURL(@videoURL)
+    savePhoto(videoData, "Blanklizy")
+    alert("تم حفظ الفيديو في تطبيق الصور ✅")
+} else {
+    alert("تعذر العثور على رابط الفيديو. تأكد من صحة الرابط، أن الفيديو عام وليس خاصاً، وأن الخدمة الخارجية متاحة حالياً.")
+}
