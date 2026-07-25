@@ -1,0 +1,41 @@
+name: Build Blanklizy Shortcut
+
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - 'blanklizy/Blanklizy.cherri'
+      - '.github/workflows/build-blanklizy.yml'
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Build the Cherri compiler
+        run: |
+          git clone --depth 1 https://github.com/electrikmilk/cherri.git /tmp/cherri-src
+          cd /tmp/cherri-src
+          go build -o /tmp/cherri .
+
+      - name: Compile and sign the shortcut
+        run: |
+          cd blanklizy
+          /tmp/cherri Blanklizy.cherri --share=anyone
+          ls -la
+
+      - name: Verify the shortcut was actually signed
+        run: |
+          cd blanklizy
+          file Blanklizy.shortcut
+          head -c 4 Blanklizy.shortcut | grep -q "AEA1" && echo "Signed OK" || (echo "NOT SIGNED" && exit 1)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Blanklizy-signed-shortcut
+          path: blanklizy/Blanklizy.shortcut
