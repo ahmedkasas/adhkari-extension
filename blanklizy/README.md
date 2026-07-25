@@ -5,11 +5,9 @@
 ## التثبيت على الآيفون
 
 1. حمّل ملف [`Blanklizy.shortcut`](./Blanklizy.shortcut) على آيفونك (عبر AirDrop، أو رابط تحميل مباشر، أو تطبيق الملفات).
-2. اضغط على الملف لفتحه في تطبيق **الاختصارات (Shortcuts)**.
-3. لأن الملف غير موقّع رقمياً (unsigned) من Apple/RoutineHub، ستحتاج أول مرة فقط لتفعيل:
-   **الإعدادات ← الاختصارات ← السماح بالاختصارات غير الموثوقة (Allow Untrusted Shortcuts)**
-   (هذا الخيار يظهر فقط بعد محاولة استيراد اختصار غير موقّع مرة واحدة).
-4. اضغط "إضافة اختصار" (Add Shortcut).
+2. اضغط على الملف لفتحه في تطبيق **الاختصارات (Shortcuts)**، ثم اضغط "إضافة اختصار" (Add Shortcut).
+
+الملف موقّع رقمياً (signed) فعلياً، فلا حاجة لتفعيل أي إعداد "اختصارات غير موثوقة" — أجهزة iOS الحديثة أصلاً ألغت هذا الخيار بالكامل ولم تعد تسمح باستيراد ملفات غير موقّعة إطلاقاً.
 
 ## طريقة الاستخدام
 
@@ -42,18 +40,21 @@
 
 الاختصار مكتوب بلغة [Cherri](https://cherrilang.org) (ملف [`Blanklizy.cherri`](./Blanklizy.cherri)) وهي لغة تُترجم مباشرة إلى ملف Shortcut صالح، مما يسهّل تعديل المنطق ومراجعته كنص عادي بدل التعامل مع تطبيق الاختصارات مباشرة.
 
-لإعادة البناء:
+**البناء والتوقيع تلقائي بالكامل عبر GitHub Actions:** أي تعديل على `Blanklizy.cherri` يشغّل تلقائياً الـ workflow في [`.github/workflows/build-blanklizy.yml`](../.github/workflows/build-blanklizy.yml)، الذي يبني الاختصار على جهاز Mac حقيقي (macOS runner مجاني)، يوقّعه (محلياً عبر macOS، وإن تعذّر فعبر خدمة [HubSign](https://routinehub.co) العامة كخطة بديلة تلقائية — بدون أي حساب أو مفتاح API)، ثم يرفع `Blanklizy.shortcut` الموقّع مباشرة على نفس الفرع. لا حاجة لأي جهاز Mac شخصي.
+
+للبناء يدوياً على أي جهاز:
 
 ```bash
-# تثبيت مترجم Cherri (macOS: Homebrew / Nix، أو أي نظام عبر Go)
 git clone https://github.com/electrikmilk/cherri
 cd cherri && go build -o cherri .
 
-# البناء بدون توقيع (يتطلب "Allow Untrusted Shortcuts" عند الاستيراد)
-./cherri Blanklizy.cherri --skip-sign
+# على macOS: توقيع محلي تلقائي
+./cherri Blanklizy.cherri --share=anyone
+
+# على أي نظام آخر: يتحول تلقائياً لخدمة HubSign
+./cherri Blanklizy.cherri --share=anyone
 ```
 
 ## خارطة الطريق
 
 - إضافة دعم أفضل-جهد لإنستغرام وفيسبوك.
-- استكشاف توقيع الاختصار (`--hubsign` أو signing server) لتفادي خطوة "Allow Untrusted Shortcuts".

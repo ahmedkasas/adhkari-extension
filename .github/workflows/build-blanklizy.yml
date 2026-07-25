@@ -10,6 +10,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: build-blanklizy-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: macos-14
@@ -52,5 +56,10 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "Sign Blanklizy.shortcut via CI (macos-14 runner)"
-            git push origin HEAD:${{ github.ref_name }}
+            for i in 1 2 3 4 5; do
+              git push origin HEAD:${{ github.ref_name }} && break
+              git fetch origin ${{ github.ref_name }}
+              git rebase origin/${{ github.ref_name }}
+              sleep 5
+            done
           fi
