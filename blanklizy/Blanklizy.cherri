@@ -6,38 +6,82 @@
 
 #include 'actions/web'
 #include 'actions/photos'
+#include 'actions/text'
 
 // Use whatever was shared into the shortcut; otherwise ask for a pasted link.
 if ShortcutInput {
     @link = "{ShortcutInput}"
 } else {
-    const pastedLink = prompt("الصق رابط الفيديو (تيك توك أو تويتر/X)", "URL", nil, "false")
+    const pastedLink = prompt("الصق رابط الفيديو (تيك توك، تويتر/X، انستغرام أو فيسبوك)", "URL", nil, "false")
     @link = "{pastedLink}"
 }
 
 const hostRaw = getURLDetail(@link, "Host")
 @host = "{hostRaw}"
+@videoURL = ""
 
-// TikTok — no-watermark link via tikwm.com's public API.
+// TikTok — highest quality no-watermark link via tikwm.com's public API.
 if @host contains "tiktok" {
     const encodedLink = urlEncode(@link)
     const apiResponse = downloadURL("https://www.tikwm.com/api/?url={encodedLink}&hd=1")
     const apiDict = getDictionary(apiResponse)
     const dataRaw = getValue(apiDict, "data")
     const data = getDictionary(dataRaw)
-    const playRaw = getValue(data, "play")
-    @videoURL = "{playRaw}"
+
+    // hdplay is the highest quality no-watermark stream when TikTok has one; play is the standard fallback.
+    const ttHdRaw = getValue(data, "hdplay")
+    @videoURL = "{ttHdRaw}"
+    if @videoURL == "" {
+        const ttPlayRaw = getValue(data, "play")
+        @videoURL = "{ttPlayRaw}"
+    }
 }
 
-// Twitter / X — direct media via the vxtwitter.com mirror API.
+// Twitter / X — direct media via the vxtwitter.com mirror API (already the best quality Twitter processed).
 if @host contains "twitter" || @host contains "x.com" {
-    const pathRaw = getURLDetail(@link, "Path")
-    @path = "{pathRaw}"
+    const twPathRaw = getURLDetail(@link, "Path")
+    @path = "{twPathRaw}"
     const twApiResponse = downloadURL("https://api.vxtwitter.com{@path}")
     const twApiDict = getDictionary(twApiResponse)
     const mediaRaw = getValue(twApiDict, "mediaURLs")
     const firstMedia = getFirstItem(mediaRaw)
     @videoURL = "{firstMedia}"
+}
+
+// Instagram — best effort: scrape the public embed page for the source video URL (no login used or required).
+if @host contains "instagram" {
+    const igPathRaw = getURLDetail(@link, "Path")
+    @igPath = "{igPathRaw}"
+    if @igPath endsWith "/" {
+        @igEmbedURL = "https://www.instagram.com{@igPath}embed/captioned/"
+    } else {
+        @igEmbedURL = "https://www.instagram.com{@igPath}/embed/captioned/"
+    }
+
+    const igHTML = downloadURL(@igEmbedURL)
+    @igHTMLText = "{igHTML}"
+    const igMatches = matchText('"video_url":"([^"]+)"', @igHTMLText)
+    const igRaw = getMatchGroup(igMatches, 1)
+    @videoURL = "{igRaw}"
+    @videoURL = replaceText('\/', '/', @videoURL, true, false)
+}
+
+// Facebook — best effort: scrape the public video page for the HD/SD source URL (no login used or required).
+if @host contains "facebook" || @host contains "fb.watch" {
+    const fbHTML = downloadURL(@link)
+    @fbHTMLText = "{fbHTML}"
+
+    const fbHdMatches = matchText('"playable_url_quality_hd":"([^"]+)"', @fbHTMLText)
+    const fbHdRaw = getMatchGroup(fbHdMatches, 1)
+    @videoURL = "{fbHdRaw}"
+
+    if @videoURL == "" {
+        const fbSdMatches = matchText('"playable_url":"([^"]+)"', @fbHTMLText)
+        const fbSdRaw = getMatchGroup(fbSdMatches, 1)
+        @videoURL = "{fbSdRaw}"
+    }
+
+    @videoURL = replaceText('\/', '/', @videoURL, true, false)
 }
 
 // YouTube blocks the free, server-less methods this shortcut relies on.
@@ -46,16 +90,10 @@ if @host contains "youtube" || @host contains "youtu.be" {
     stop()
 }
 
-// Instagram/Facebook need an authenticated backend to be reliable — not included in this no-server version.
-if @host contains "instagram" || @host contains "facebook" || @host contains "fb.watch" {
-    alert("إنستغرام وفيسبوك غير مدعومين بعد في هذا الإصدار من بلانكليزي. سيتم إضافتهما لاحقاً.")
-    stop()
-}
-
-if @videoURL {
+if @videoURL != "" {
     const videoData = downloadURL(@videoURL)
     savePhoto(videoData, "Blanklizy")
-    alert("تم حفظ الفيديو في تطبيق الصور ✅")
+    alert("تم حفظ الفيديو في تطبيق الصور بأعلى جودة متاحة ✅")
 } else {
     alert("تعذر العثور على رابط الفيديو. تأكد من صحة الرابط، أن الفيديو عام وليس خاصاً، وأن الخدمة الخارجية متاحة حالياً.")
 }
