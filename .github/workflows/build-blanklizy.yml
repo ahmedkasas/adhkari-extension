@@ -7,6 +7,9 @@ on:
       - 'blanklizy/Blanklizy.cherri'
       - '.github/workflows/build-blanklizy.yml'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-14
@@ -39,3 +42,15 @@ jobs:
         with:
           name: Blanklizy-signed-shortcut
           path: blanklizy/Blanklizy.shortcut
+
+      - name: Commit the signed shortcut back to the branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add blanklizy/Blanklizy.shortcut
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Sign Blanklizy.shortcut via CI (macos-14 runner)"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
