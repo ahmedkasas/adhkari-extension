@@ -20,20 +20,41 @@ const hostRaw = getURLDetail(@link, "Host")
 @host = "{hostRaw}"
 @videoURL = ""
 
-// TikTok — highest quality no-watermark link via tikwm.com's public API.
+// TikTok — read the true source resolution straight from TikTok's own page first;
+// tikwm.com's API is a fallback since its "hdplay" is often only a mid-quality proxy.
 if @host contains "tiktok" {
-    const encodedLink = urlEncode(@link)
-    const apiResponse = downloadURL("https://www.tikwm.com/api/?url={encodedLink}&hd=1")
-    const apiDict = getDictionary(apiResponse)
-    const dataRaw = getValue(apiDict, "data")
-    const data = getDictionary(dataRaw)
+    const ttHTML = downloadURL(@link, {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"})
+    @ttHTMLText = "{ttHTML}"
 
-    // hdplay is the highest quality no-watermark stream when TikTok has one; play is the standard fallback.
-    const ttHdRaw = getValue(data, "hdplay")
-    @videoURL = "{ttHdRaw}"
+    const ttDLMatches = matchText('"downloadAddr":"([^"]+)"', @ttHTMLText)
+    const ttDLRaw = getMatchGroup(ttDLMatches, 1)
+    @videoURL = "{ttDLRaw}"
+
     if @videoURL == "" {
-        const ttPlayRaw = getValue(data, "play")
-        @videoURL = "{ttPlayRaw}"
+        const ttPlayMatches = matchText('"playAddr":"([^"]+)"', @ttHTMLText)
+        const ttPlayAddrRaw = getMatchGroup(ttPlayMatches, 1)
+        @videoURL = "{ttPlayAddrRaw}"
+    }
+
+    if @videoURL != "" {
+        @videoURL = replaceText('\/', '/', @videoURL, true, false)
+        @videoURL = replaceText('\u0026', "&", @videoURL, true, false)
+    }
+
+    // Fallback: tikwm.com's public API (no-watermark, but usually a lower-res proxy).
+    if @videoURL == "" {
+        const encodedLink = urlEncode(@link)
+        const apiResponse = downloadURL("https://www.tikwm.com/api/?url={encodedLink}&hd=1")
+        const apiDict = getDictionary(apiResponse)
+        const dataRaw = getValue(apiDict, "data")
+        const data = getDictionary(dataRaw)
+
+        const ttHdRaw = getValue(data, "hdplay")
+        @videoURL = "{ttHdRaw}"
+        if @videoURL == "" {
+            const ttPlayRaw = getValue(data, "play")
+            @videoURL = "{ttPlayRaw}"
+        }
     }
 }
 
