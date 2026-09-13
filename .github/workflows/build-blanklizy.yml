@@ -35,15 +35,8 @@ jobs:
           cd blanklizy
           /tmp/cherri Blanklizy.cherri --skip-sign --debug || true
           ls -la
-          python3 - <<'PYEOF'
-import json
-with open('Blanklizy.plist', 'r') as f:
-    plist_content = f.read()
-payload = json.dumps({"shortcutName": "Blanklizy", "shortcut": plist_content})
-with open('/tmp/payload.json', 'w') as f:
-    f.write(payload)
-print("Payload size:", len(payload))
-PYEOF
+          jq -n --rawfile shortcut Blanklizy.plist '{shortcutName: "Blanklizy", shortcut: $shortcut}' > /tmp/payload.json
+          echo "Payload size: $(wc -c < /tmp/payload.json)"
           echo "--- HubSign response ---"
           curl -sS -i -X POST "https://hubsign.routinehub.services/sign" -H "Content-Type: application/json" -d @/tmp/payload.json | head -c 4000
           echo ""
