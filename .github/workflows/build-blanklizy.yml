@@ -30,18 +30,6 @@ jobs:
           cd /tmp/cherri-src
           go build -o /tmp/cherri .
 
-      - name: Diagnose HubSign rejection
-        run: |
-          cd blanklizy
-          /tmp/cherri Blanklizy.cherri --skip-sign --debug || true
-          ls -la
-          jq -n --rawfile shortcut Blanklizy.plist '{shortcutName: "Blanklizy", shortcut: $shortcut}' > /tmp/payload.json
-          echo "Payload size: $(wc -c < /tmp/payload.json)"
-          echo "--- HubSign response ---"
-          curl -sS -i -X POST "https://hubsign.routinehub.services/sign" -H "Content-Type: application/json" -d @/tmp/payload.json | head -c 4000
-          echo ""
-          rm -f Blanklizy.shortcut Blanklizy_unsigned.shortcut Blanklizy.plist Blanklizy_processed.cherri
-
       - name: Compile and sign the shortcut
         run: |
           cd blanklizy
