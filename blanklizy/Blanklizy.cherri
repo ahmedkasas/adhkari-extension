@@ -7,6 +7,7 @@
 #include 'actions/web'
 #include 'actions/photos'
 #include 'actions/text'
+#include 'actions/documents'
 
 // Use whatever was shared into the shortcut; otherwise ask for a pasted link.
 if ShortcutInput {
@@ -76,9 +77,56 @@ if @host contains "instagram" {
     stop()
 }
 
+// Facebook — needs a real logged-in session cookie now, since it gates video pages behind a login wall.
+// The cookie is asked for once and cached locally in the Shortcuts folder for next time.
 if @host contains "facebook" || @host contains "fb.watch" {
-    alert("فيسبوك غير مدعوم حالياً — صار يفرض تسجيل دخول حتى على الفيديوهات العامة، ولا توجد طريقة مجانية موثوقة لتجاوز هذا بدون سيرفر خاص.")
-    stop()
+    @fbCookie = ""
+    const savedCookie = getFile("Blanklizy/fb_cookie.txt", nil, false)
+    if savedCookie {
+        @fbCookie = "{savedCookie}"
+    }
+
+    if @fbCookie == "" {
+        const enteredCookie = prompt("فيسبوك يحتاج كوكي جلسة دخول حقيقية. من متصفح على الكمبيوتر مسجّل دخول بحسابك، افتح أدوات المطوّر (DevTools) > Network، افتح أي طلب لـ facebook.com، وانسخ قيمة ترويسة Cookie كاملة والصقها هنا.", "Text", nil, "false")
+        @fbCookie = "{enteredCookie}"
+        saveFile("Blanklizy/fb_cookie.txt", @fbCookie, true)
+    }
+
+    const fbHTML = downloadURL(@link, {"Cookie": "{@fbCookie}", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"})
+    @fbHTMLText = "{fbHTML}"
+
+    const fbHdMatches = matchText('"playable_url_quality_hd":"([^"]+)"', @fbHTMLText)
+    const fbHdRaw = getMatchGroup(fbHdMatches, 1)
+    @videoURL = "{fbHdRaw}"
+    if @videoURL == "" {
+        const fbSdMatches = matchText('"playable_url":"([^"]+)"', @fbHTMLText)
+        const fbSdRaw = getMatchGroup(fbSdMatches, 1)
+        @videoURL = "{fbSdRaw}"
+    }
+
+    // The cached cookie may have expired — ask once for a fresh one and retry.
+    if @videoURL == "" {
+        const freshCookie = prompt("تعذّر جلب الفيديو، غالباً الكوكي منتهية الصلاحية. الصق كوكي جديدة من نفس الخطوات السابقة.", "Text", nil, "false")
+        @fbCookie = "{freshCookie}"
+        saveFile("Blanklizy/fb_cookie.txt", @fbCookie, true)
+
+        const fbHTML2 = downloadURL(@link, {"Cookie": "{@fbCookie}", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"})
+        @fbHTMLText2 = "{fbHTML2}"
+
+        const fbHdMatches2 = matchText('"playable_url_quality_hd":"([^"]+)"', @fbHTMLText2)
+        const fbHdRaw2 = getMatchGroup(fbHdMatches2, 1)
+        @videoURL = "{fbHdRaw2}"
+        if @videoURL == "" {
+            const fbSdMatches2 = matchText('"playable_url":"([^"]+)"', @fbHTMLText2)
+            const fbSdRaw2 = getMatchGroup(fbSdMatches2, 1)
+            @videoURL = "{fbSdRaw2}"
+        }
+    }
+
+    if @videoURL != "" {
+        @videoURL = replaceText('\/', '/', @videoURL, true, false)
+        @videoURL = replaceText('&', "&", @videoURL, true, false)
+    }
 }
 
 // YouTube blocks the free, server-less methods this shortcut relies on.
